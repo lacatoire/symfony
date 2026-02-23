@@ -4,6 +4,7 @@ CHANGELOG
 7.4
 ---
 
+ * Fix `PriorityTaggedServiceTrait` not discovering `#[AsTaggedItem]` on decorated services
  * [BC BREAK] Throw when using `$this` or its internal scope from PHP config files; use the `$loader` variable instead
  * Allow adding resource tags using any config format
  * Allow `#[AsAlias]` to be extended

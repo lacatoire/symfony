@@ -449,6 +449,31 @@ class PriorityTaggedServiceTraitTest extends TestCase
         $this->assertArrayHasKey('default', $services);
     }
 
+    public function testDecoratedServiceAsTaggedItemIndex()
+    {
+        $container = new ContainerBuilder();
+
+        // Register the inner service with AsTaggedItem
+        $container->register('inner.tagged_service', DecoratedAsTaggedItemService::class)
+            ->setAutoconfigured(true)
+            ->addTag('my_custom_tag');
+
+        // Register a decorator that wraps the inner service
+        $decorator = $container->register('decorator.tagged_service', \stdClass::class);
+        $decorator->addTag('my_custom_tag');
+        $decorator->addTag('container.decorator', ['id' => DecoratedAsTaggedItemService::class, 'inner' => 'inner.tagged_service']);
+
+        (new ResolveInstanceofConditionalsPass())->process($container);
+
+        $priorityTaggedServiceTraitImplementation = new PriorityTaggedServiceTraitImplementation();
+
+        $tag = new TaggedIteratorArgument('my_custom_tag', 'foo', 'getFooBar');
+        $services = $priorityTaggedServiceTraitImplementation->test($tag, $container);
+
+        $this->assertArrayHasKey('custom_key', $services);
+        $this->assertSame('decorator.tagged_service', (string) $services['custom_key']);
+    }
+
     public function testTagAttributesAreNotAList()
     {
         $container = new ContainerBuilder();
@@ -552,4 +577,9 @@ class MultiTagNonStaticClass
     {
         return 'default';
     }
+}
+
+#[AsTaggedItem(index: 'custom_key', priority: 1)]
+class DecoratedAsTaggedItemService
+{
 }

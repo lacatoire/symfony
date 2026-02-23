@@ -66,6 +66,18 @@ trait PriorityTaggedServiceTrait
             $reflector = null !== $class ? $container->getReflectionClass($class) : null;
             $phpAttributes = $definition->isAutoconfigured() && !$definition->hasTag('container.ignore_attributes') ? $reflector?->getAttributes(AsTaggedItem::class) : [];
 
+            if (!$phpAttributes && ($decoratorTag = $definition->getTag('container.decorator')) && isset($decoratorTag[0]['inner'])) {
+                $innerDef = $container->hasDefinition($decoratorTag[0]['inner']) ? $container->getDefinition($decoratorTag[0]['inner']) : null;
+                if ($innerDef) {
+                    $innerClass = $parameterBag->resolveValue($innerDef->getClass()) ?: null;
+                    $innerReflector = null !== $innerClass ? $container->getReflectionClass($innerClass) : null;
+                    if ($innerReflector) {
+                        $phpAttributes = $innerDef->isAutoconfigured() && !$innerDef->hasTag('container.ignore_attributes')
+                            ? $innerReflector->getAttributes(AsTaggedItem::class) : [];
+                    }
+                }
+            }
+
             foreach ($phpAttributes ??= [] as $i => $attribute) {
                 $attribute = $attribute->newInstance();
                 $phpAttributes[$i] = [
