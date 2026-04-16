@@ -168,7 +168,7 @@ class DoctrineDbalStore implements PersistingStoreInterface
 
     private function executeSaveStatement(string $sql, Key $key): int
     {
-        return $this->conn->executeStatement($sql, [
+        return (int) $this->conn->executeStatement($sql, [
             $this->getHashedKey($key),
             $this->getUniqueToken($key),
         ], [
