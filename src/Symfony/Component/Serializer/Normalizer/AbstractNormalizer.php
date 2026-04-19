@@ -346,7 +346,7 @@ abstract class AbstractNormalizer implements NormalizerInterface, DenormalizerIn
             $missingConstructorArguments = [];
             $params = [];
             $unsetKeys = [];
-            $collectedErrorCountBeforeConstructor = isset($context['not_normalizable_value_exceptions']) ? \count($context['not_normalizable_value_exceptions']) : 0;
+            $collectedErrorCountBeforeConstructor = \count($context['not_normalizable_value_exceptions'] ?? []);
 
             foreach ($constructorParameters as $constructorParameter) {
                 $paramName = $constructorParameter->name;
