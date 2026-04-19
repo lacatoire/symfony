@@ -121,14 +121,26 @@ class DoctrineDbalStore implements PersistingStoreInterface
         $sql = "INSERT INTO $this->table ($this->idCol, $this->tokenCol, $this->expirationCol) VALUES (?, ?, {$this->getCurrentTimestampStatement()} + $this->initialTtl)";
 
         try {
-            $this->executeSaveStatement($sql, $key);
+            $this->conn->executeStatement($sql, [
+                $this->getHashedKey($key),
+                $this->getUniqueToken($key),
+            ], [
+                ParameterType::STRING,
+                ParameterType::STRING,
+            ]);
         } catch (TableNotFoundException) {
             if (!$this->conn->isTransactionActive() || $this->platformSupportsTableCreationInTransaction()) {
                 $this->createTable();
             }
 
             try {
-                $this->executeSaveStatement($sql, $key);
+                $this->conn->executeStatement($sql, [
+                    $this->getHashedKey($key),
+                    $this->getUniqueToken($key),
+                ], [
+                    ParameterType::STRING,
+                    ParameterType::STRING,
+                ]);
             } catch (DBALException) {
                 $this->putOffExpiration($key, $this->initialTtl);
             }
@@ -153,28 +165,26 @@ class DoctrineDbalStore implements PersistingStoreInterface
             ." ON CONFLICT ($this->idCol) DO UPDATE SET $this->tokenCol = EXCLUDED.$this->tokenCol, $this->expirationCol = EXCLUDED.$this->expirationCol"
             ." WHERE $this->table.$this->tokenCol = EXCLUDED.$this->tokenCol OR $this->table.$this->expirationCol <= $now";
 
+        $params = [
+            $this->getHashedKey($key),
+            $this->getUniqueToken($key),
+        ];
+        $types = [
+            ParameterType::STRING,
+            ParameterType::STRING,
+        ];
+
         try {
-            $rows = $this->executeSaveStatement($sql, $key);
+            $rows = (int) $this->conn->executeStatement($sql, $params, $types);
         } catch (TableNotFoundException) {
             // PostgreSQL supports DDL inside a transaction, so we can always create the table.
             $this->createTable();
-            $rows = $this->executeSaveStatement($sql, $key);
+            $rows = (int) $this->conn->executeStatement($sql, $params, $types);
         }
 
         if (0 === $rows) {
             throw new LockConflictedException();
         }
-    }
-
-    private function executeSaveStatement(string $sql, Key $key): int
-    {
-        return (int) $this->conn->executeStatement($sql, [
-            $this->getHashedKey($key),
-            $this->getUniqueToken($key),
-        ], [
-            ParameterType::STRING,
-            ParameterType::STRING,
-        ]);
     }
 
     /**

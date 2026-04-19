@@ -148,34 +148,40 @@ class PdoStore implements PersistingStoreInterface
             ." WHERE $this->table.$this->tokenCol = EXCLUDED.$this->tokenCol OR $this->table.$this->expirationCol <= $now";
 
         $conn = $this->getConnection();
+        $id = $this->getHashedKey($key);
+        $token = $this->getUniqueToken($key);
 
         try {
-            $stmt = $this->prepareSavePostgres($conn, $sql, $key);
-            $stmt->execute();
+            $stmt = $conn->prepare($sql);
         } catch (\PDOException $e) {
             if (!$this->isTableMissing($e)) {
                 throw $e;
             }
-
             // PostgreSQL supports DDL inside a transaction, so we can always create the table.
             $this->createTable();
+            $stmt = $conn->prepare($sql);
+        }
 
-            $stmt = $this->prepareSavePostgres($conn, $sql, $key);
+        $stmt->bindValue(':id', $id);
+        $stmt->bindValue(':token', $token);
+
+        try {
+            $stmt->execute();
+        } catch (\PDOException $e) {
+            // Emulated prepares surface 42P01 at execute() time.
+            if (!$this->isTableMissing($e)) {
+                throw $e;
+            }
+            $this->createTable();
+            $stmt = $conn->prepare($sql);
+            $stmt->bindValue(':id', $id);
+            $stmt->bindValue(':token', $token);
             $stmt->execute();
         }
 
         if (0 === $stmt->rowCount()) {
             throw new LockConflictedException();
         }
-    }
-
-    private function prepareSavePostgres(\PDO $conn, string $sql, Key $key): \PDOStatement
-    {
-        $stmt = $conn->prepare($sql);
-        $stmt->bindValue(':id', $this->getHashedKey($key));
-        $stmt->bindValue(':token', $this->getUniqueToken($key));
-
-        return $stmt;
     }
 
     /**
