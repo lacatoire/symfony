@@ -1576,7 +1576,7 @@ class SerializerTest extends TestCase
         $serializer = new Serializer([$classStringDenormalizer, new ObjectNormalizer()]);
 
         $target = Fixtures\DummyWithObjectConstructor::class;
-        $otherClass = Fixtures\Php74Full::class;
+        $otherClass = Php74Full::class;
 
         try {
             $serializer->denormalize(
