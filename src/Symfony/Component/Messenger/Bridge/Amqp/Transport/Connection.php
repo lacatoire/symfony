@@ -105,6 +105,15 @@ class Connection
             throw new LogicException(\sprintf('You cannot use the "%s" as the "amqp" extension is not installed.', __CLASS__));
         }
 
+        // The "user" option is documented as an alias for "login" (which is the only key understood
+        // by php-amqp). Normalize it here so passing "user" via the constructor or via DSN query
+        // string ("?user=…") works the same as setting "login" directly. Without this, php-amqp
+        // silently falls back to the default "guest" credential.
+        if (isset($connectionOptions['user']) && !isset($connectionOptions['login'])) {
+            $connectionOptions['login'] = $connectionOptions['user'];
+        }
+        unset($connectionOptions['user']);
+
         $this->connectionOptions = array_replace_recursive([
             'delay' => [
                 'exchange_name' => 'delays',

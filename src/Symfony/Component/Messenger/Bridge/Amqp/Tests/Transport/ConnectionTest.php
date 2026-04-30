@@ -34,6 +34,49 @@ class ConnectionTest extends TestCase
         Connection::fromDsn('amqp://:');
     }
 
+    public function testUserOptionIsAliasedToLogin()
+    {
+        // The "user" option is documented as an alias for "login" (which is the
+        // only key actually used by php-amqp). The constructor must normalize it
+        // so passing it directly does not silently default php-amqp to "guest".
+        $connection = new Connection([
+            'host' => 'localhost',
+            'user' => 'alice',
+            'password' => 's3cret',
+        ], [
+            'name' => self::DEFAULT_EXCHANGE_NAME,
+        ], [
+            self::DEFAULT_EXCHANGE_NAME => [],
+        ]);
+
+        $r = new \ReflectionProperty(Connection::class, 'connectionOptions');
+        $options = $r->getValue($connection);
+
+        $this->assertSame('alice', $options['login']);
+        $this->assertArrayNotHasKey('user', $options);
+    }
+
+    public function testExplicitLoginWinsOverUser()
+    {
+        // When both "user" and "login" are given, "login" takes precedence and
+        // "user" is dropped: the alias must never overwrite an explicit value.
+        $connection = new Connection([
+            'host' => 'localhost',
+            'user' => 'alice',
+            'login' => 'bob',
+        ], [
+            'name' => self::DEFAULT_EXCHANGE_NAME,
+        ], [
+            self::DEFAULT_EXCHANGE_NAME => [],
+        ]);
+
+        $r = new \ReflectionProperty(Connection::class, 'connectionOptions');
+        $options = $r->getValue($connection);
+
+        $this->assertSame('bob', $options['login']);
+        $this->assertArrayNotHasKey('user', $options);
+    }
+
     public function testItCanBeConstructedWithDefaults()
     {
         $this->assertEquals(
